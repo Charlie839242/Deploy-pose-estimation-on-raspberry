@@ -1,17 +1,3 @@
-# Copyright 2021 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import math
 from typing import List, Tuple
 
@@ -49,18 +35,7 @@ def visualize(image: np.ndarray,
               keypoint_color: Tuple[int, ...] = (0, 255, 0),
               keypoint_threshold: float = 0.25,
               instance_threshold: float = 0.3):
-  """Draws landmarks and edges on the input image and return it.
 
-  Args:
-    image: The input RGB image.
-    list_persons: The list of all "Person" entities to be visualize.
-    keypoint_color: the colors in which the landmarks should be plotted.
-    keypoint_threshold: minimum confidence score for a keypoint to be drawn.
-    instance_threshold: minimum confidence score for a person to be drawn.
-
-  Returns:
-    Image with keypoints and edges.
-  """
   for person in list_persons:
     if person.score < instance_threshold:
       break;        # 因为该模型只检测单人，所以直接break

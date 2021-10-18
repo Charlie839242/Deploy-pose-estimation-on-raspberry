@@ -1,4 +1,3 @@
-# utf-8
 import cv2
 import numpy as np
 import time
@@ -79,7 +78,7 @@ while True:
     cv2.putText(img, FPS, (24, 20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)      # 显示FPS
 
     cv2.imshow('img', img)
-    if cv2.waitKey(1) == ord('q'):
+    if cv2.waitKey(1) == 27:
         break
 
 
