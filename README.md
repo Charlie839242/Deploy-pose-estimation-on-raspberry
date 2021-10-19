@@ -168,9 +168,7 @@ filter函数接收两个参数，第一个是函数，第二个是序列。filte
 ```
     scores_above_threshold = list(
     	filter(lambda x: x > keypoint_score_threshold, scores))
-    scores_above_threshold = np.append(scores_above_threshold, 0)
-    # 手动添加一个0来确保不会出现空列表
-    person_score = np.average(scores_above_threshold)
+	person_score = np.average(scores_above_threshold) if scores_above_threshold else 0
 ```
 
 
