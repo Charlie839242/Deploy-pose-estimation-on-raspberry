@@ -15,12 +15,14 @@ parser.add_argument(
 parser.add_argument(
     '--video', help='Using camera or video', type=str, required=False, default='0')
 parser.add_argument(
-    '--platform', help='Run on PC or respberry', type=str, required=False, default='PC')
+    '--platform', help='Run on PC or respberry.', type=str, required=False, default='PC')
+parser.add_argument(
+    '--classifier', help='Path of classification model.', required=False)
 args = parser.parse_args()
-print('args are: ', args.model_path, args.video, args.platform)
+
+
 if (args.platform == 'PC'):
     import tensorflow
-    print('1')
     Interpreter = tensorflow.lite.Interpreter
     print('Using full tensorflow pkg')
 elif (args.platform == 'raspberry'):
@@ -34,8 +36,19 @@ def img_pre(img):
     return input_data
 
 
+if args.classifier:
+    classify_pose = ['chair', 'cobra', 'dog', 'tree', 'warrior']
+    classifier = Interpreter(model_path=args.classifier, num_threads=4)
+    print('classify model loaded successfully')
+
+    classifier.allocate_tensors()
+    classify_input_details = classifier.get_input_details()
+    classify_output_details = classifier.get_output_details()
+
+
+
 interpreter = Interpreter(model_path=args.model_path, num_threads=4)
-print('model loaded successfully')
+print('pose estimation model loaded successfully')
 
 interpreter.allocate_tensors()
 
@@ -70,6 +83,21 @@ while True:
     # 模型输出解码
     output_data = np.squeeze(output_data)           # 删除单维度
     decode_data = [person_from_keypoints_with_scores(output_data, height, width)]
+
+    if args.classifier:
+        input_tensor = [[
+            keypoint.coordinate.y, keypoint.coordinate.x, keypoint.score
+        ] for keypoint in decode_data[0].keypoints]
+        input_tensor = np.array(input_tensor).flatten().astype(np.float32)
+        input_tensor = np.expand_dims(input_tensor, axis=0)
+        classifier.set_tensor(classify_input_details[0]['index'], input_tensor)
+
+        classifier.invoke()
+
+        output_tensor = classifier.get_tensor(classify_output_details[0]['index'])
+        print(classify_pose[np.argmax(output_tensor)])
+
+
 
     # visualize
     img = visualize.visualize(img, decode_data)
