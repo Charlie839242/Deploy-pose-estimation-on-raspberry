@@ -21,6 +21,14 @@ pip3 install requirements.txt
 			--platform="raspberry"
 ```
 
+更新：要做分类的话就在后面加上
+
+```
+--classifier="./model/classifier.tflite"
+```
+
+
+
 ## 对movenet的一些理解
 
 ### ①Bottom-up
@@ -28,6 +36,8 @@ pip3 install requirements.txt
 movenet是一个bottom-up的单人姿态检测模型，即movenet根据特征图先输出关键点，再根据这些点的相对位置来筛选。这样就免去了部署如YOLO的一些人体检测器。缺点是bottom-up模型的精度不如top-down的模型。
 
 Openpose就是一个top-down的模型，需要额外的人体检测器，加大了部署成本。
+
+
 
 ### ②输入和预处理
 
@@ -41,7 +51,33 @@ Openpose就是一个top-down的模型，需要额外的人体检测器，加大�
     input_data = np.expand_dims(input_data, axis=0)                         
 ```
 
-### ③输出和解码
+### ③载入posenet模型
+
+通过tf.lite.Interpreter或者tflite_runtime.interpreter来载入模型，并且设置其输入，输出：
+
+```
+    interpreter = Interpreter(model_path=args.model_path, num_threads=4)
+    print('pose estimation model loaded successfully')
+
+    interpreter.allocate_tensors()
+
+    # 获取模型的详细数据
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    
+    # 设置模型输出
+    interpreter.set_tensor(input_details[0]['index'],input_data)
+
+    # 运行模型
+    interpreter.invoke()
+
+    # 获取模型输出
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+```
+
+通过output_data.shape()可以得知输出是一个1×1×17×3的张量。下一步就是对输出解码。
+
+### ④输出和解码
 
 模型的输出是一个1×1×17×3的张量。
 
@@ -181,7 +217,7 @@ filter函数接收两个参数，第一个是函数，第二个是序列。filte
 
 
 
-### ④可视化
+### ⑤可视化
 
 首先判断这个人是否存在，即是否应该显示检测框和关键点。通过Person的score属性判断，若太小，则代表这个人不存在。
 
@@ -265,11 +301,55 @@ KEYPOINT_EDGE_INDS_TO_COLOR是一个字典类数据，其中预先保存了关�
 
 
 
+### ⑥分类
+
+关于.model/classifier.tflite，这是一个五分类模型。
+
+这个模型输入一个1×51的矩阵，输出1×5的矩阵。
+
+输入的1×51的矩阵包含的是17个关键点的x坐标，y坐标和置信度。例如:
+
+```
+    [[x1, y1, score1, x2, y2, score2, x3......]]
+```
+
+输出的1×5的矩阵分别是五个分类的概率，五个分类分别是：
+
+```
+    classify_pose = ['chair', 'cobra', 'dog', 'tree', 'warrior']
+```
 
 
 
+首先判断argparse是否要作分类，要作则载入模型：
+
+```
+    if args.classifier:
+        classify_pose = ['chair', 'cobra', 'dog', 'tree', 'warrior']
+        classifier = Interpreter(model_path=args.classifier, num_threads=4)
+        print('classify model loaded successfully')
+
+        classifier.allocate_tensors()
+        classify_input_details = classifier.get_input_details()
+        classify_output_details = classifier.get_output_details()
+```
 
 
 
+再跑完pose-estimation模型并解码输出得到decode_data后,先把需要输入1×51矩阵的信息筛选出来。(注意，关于输入的坐标，由于该模型是从坐标间的相对位置提取特征，所以坐标做不做归一化都无所谓。)然后设定只有每个关键点都被检测到且检测到的置信度不低于0.1时，才会运行模型，否则认为分类失败：
 
+```
+        input_tensor = [[
+            keypoint.coordinate.y, keypoint.coordinate.x, keypoint.score
+        ] for keypoint in decode_data[0].keypoints]
+        input_tensor = np.array(input_tensor)
+        if(min(input_tensor[:,2]) > 0.1):				# 所有关键点score>0.1才能分类
+            input_tensor = input_tensor.flatten().astype(np.float32)
+            input_tensor = np.expand_dims(input_tensor, axis=0)
+            classifier.set_tensor(classify_input_details[0]['index'], input_tensor)
 
+            classifier.invoke()							# 运行
+
+            output_tensor = classifier.get_tensor(classify_output_details[0]['index'])
+            print(classify_pose[np.argmax(output_tensor)])
+```

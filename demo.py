@@ -88,14 +88,16 @@ while True:
         input_tensor = [[
             keypoint.coordinate.y, keypoint.coordinate.x, keypoint.score
         ] for keypoint in decode_data[0].keypoints]
-        input_tensor = np.array(input_tensor).flatten().astype(np.float32)
-        input_tensor = np.expand_dims(input_tensor, axis=0)
-        classifier.set_tensor(classify_input_details[0]['index'], input_tensor)
+        input_tensor = np.array(input_tensor)
+        if(min(input_tensor[:,2]) > 0.1):
+            input_tensor = input_tensor.flatten().astype(np.float32)
+            input_tensor = np.expand_dims(input_tensor, axis=0)
+            classifier.set_tensor(classify_input_details[0]['index'], input_tensor)
 
-        classifier.invoke()
+            classifier.invoke()
 
-        output_tensor = classifier.get_tensor(classify_output_details[0]['index'])
-        print(classify_pose[np.argmax(output_tensor)])
+            output_tensor = classifier.get_tensor(classify_output_details[0]['index'])
+            print(classify_pose[np.argmax(output_tensor)])
 
 
 
